@@ -10,7 +10,7 @@
       "program": "${file}",
       "skipFiles": [
         "<node_internals>/**"
-      ],
+      ]
     }
   ]
 }
