@@ -1,4 +1,4 @@
 .env
 *.epub
 node_modules
-EffectiveTypeScript
+build
