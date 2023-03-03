@@ -2,7 +2,6 @@ import { ChatGPTAPI, ChatMessage } from 'chatgpt';
 import * as cheerio from 'cheerio';
 import nodeFetch from 'node-fetch';
 import ProxyAgent from 'simple-proxy-agent';
-import { stdout as log } from 'single-line-log';
 
 export default class GptTranslator {
   private api: ChatGPTAPI;
@@ -18,15 +17,10 @@ export default class GptTranslator {
     });
   }
 
-  async sendGptMessage(prompt: string): Promise<ChatMessage> {
-    let i = 0;
-    console.log('\r\n\r\n', prompt);
+  async sendGptMessage(prompt: string, onProgress: (partialResponse: ChatMessage) => void): Promise<ChatMessage> {
     const res = await this.api.sendMessage(prompt, {
-      onProgress: (partialResponse) => {
-        log(`翻译中：${i++}%`)
-      }
+      onProgress
     });
-    console.log('\r\n', res.text);
     return res
   }
 }

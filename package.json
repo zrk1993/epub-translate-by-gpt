@@ -2,7 +2,7 @@
   "type": "module",
   "scripts": {
     "serve": "tsx src/main.ts",
-    "test": "tsx src/test.ts"
+    "zip": "tsx src/main.ts -z"
   },
   "dependencies": {
     "chatgpt": "^4.8.3",
