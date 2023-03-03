@@ -11,7 +11,6 @@
     "epub": "^1.2.1",
     "extract-zip": "^2.0.1",
     "node-fetch": "^3.3.0",
-    "openai": "^3.2.1",
     "simple-proxy-agent": "^1.1.0",
     "single-line-log": "^1.1.2",
     "tunnel": "^0.0.6",
