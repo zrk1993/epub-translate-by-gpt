@@ -1,0 +1,180 @@
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+
+<head>
+  <title>TypeScript’s Type System</title>
+  <link href="epub.css" rel="stylesheet" type="text/css" />
+  <meta content="urn:uuid:8afb5061-26d0-42f8-b032-e80089368d79" name="Adept.expected.resource" />
+</head>
+
+<body data-type="book">
+  <section data-pdf-bookmark="Chapter 2. TypeScript’s Type System" data-type="chapter" epub:type="chapter">
+    <div class="chapter" id="ch-types">
+      <h1><span class="label">Chapter 2. </span>TypeScript’s Type System</h1>
+      <p>TypeScript generates code (<a href="ch01.html#independent">Item 3</a>), but the type system is the main event.
+        This is why you’re using the language!</p>
+
+      <p>This chapter walks you through the nuts and bolts of TypeScript’s type system: how to think about it, how to
+        use it, choices you’ll need to make, and features you should avoid. TypeScript’s type system is surprisingly
+        powerful and able to express things you might not expect a type system to be able to. The items in this chapter
+        will give you a solid foundation to build upon as you write TypeScript and read the rest of this book.</p>
+
+      <section data-pdf-bookmark="Item 6: Use Your Editor to Interrogate and Explore the Type System" data-type="sect1">
+        <div class="sect1" id="editor">
+          <h1>Item 6: Use Your Editor to Interrogate and Explore the Type System</h1>
+
+          <p>When<a data-primary="type system" data-secondary="using editors to interrogate and explore"
+              data-type="indexterm" id="TSeditor02" /><a
+              data-primary="editors, using to interrogate and explore type system" data-type="indexterm"
+              id="Einterr02" /> you install TypeScript, you get two executables:</p>
+
+          <ul>
+            <li>
+              <p><code>tsc</code>, the TypeScript compiler</p>
+            </li>
+            <li>
+              <p><code>tsserver</code>, the TypeScript standalone server</p>
+            </li>
+          </ul>
+
+          <p>You’re<a data-primary="language services" data-secondary="components of" data-type="indexterm"
+              id="idm45331677447448" /> much more likely to run the TypeScript compiler directly, but the server is
+            every bit as important because it provides <em>language services</em>. These include autocomplete,
+            inspection, navigation, and refactoring. You typically use these services through your editor. If yours
+            isn’t configured to provide them, then you’re missing out! Services like autocomplete are one of the things
+            that make TypeScript such a joy to use. But beyond convenience, your editor is the best place to build and
+            test your knowledge of the type system. This will help you build an intuition for when TypeScript is able to
+            infer types, which is key to writing compact, idiomatic code (see <a href="ch03.html#avoid-inferable">Item
+              19</a>).</p>
+
+          <p>The details will vary from editor to editor, but you can generally mouse over a symbol to see what
+            TypeScript considers its type (see <a data-type="xref" href="#efts-02in01">Figure 2-1</a>).</p>
+
+          <figure>
+            <div class="figure" id="efts-02in01">
+              <img alt="efts 02in01" src="assets/efts_02in01.png" />
+              <h6><span class="label">Figure 2-1. </span>An editor (vscode) showing that the inferred type of the num
+                symbol is <span class="keep-together">number</span></h6>
+            </div>
+          </figure>
+
+          <p>You didn’t write <code>number</code> here, but TypeScript was able to figure it out based on the value 10.
+          </p>
+
+          <p>You<a data-primary="functions" data-secondary="inspecting with editors" data-type="indexterm"
+              id="idm45331677439320" /> can also inspect functions, as shown in <a data-type="xref"
+              href="#hover1">Figure 2-2</a>.</p>
+
+          <figure>
+            <div class="figure" id="hover1">
+              <img alt="efts 0201" src="assets/efts_0201.png" />
+              <h6><span class="label">Figure 2-2. </span>Using an editor to reveal the inferred type for a function</h6>
+            </div>
+          </figure>
+
+          <p>The noteworthy bit of information is the inferred value for the return type, <code>number</code>. If this
+            does not match your expectation, you should add a type declaration and track down the discrepancy (see <a
+              href="#prefer-declarations-to-assertions">Item 9</a>).</p>
+
+          <p>Seeing TypeScript’s understanding of a variable’s type at any given point is essential for building an
+            intuition around widening (<a href="ch03.html#widening">Item 21</a>) and narrowing (<a
+              href="ch03.html#narrowing">Item 22</a>). Seeing the type of a variable change in the branch of a
+            conditional is a tremendous way to build confidence in the type system (see <a data-type="xref"
+              href="#editor-narrowing">Figure 2-3</a>).</p>
+
+          <figure>
+            <div class="figure" id="editor-narrowing">
+              <img alt="efts 0202" src="assets/efts_0202.png" />
+              <h6><span class="label">Figure 2-3. </span>The type of message is string | null outside the branch but
+                string inside.</h6>
+            </div>
+          </figure>
+
+          <p>You can inspect individual properties in a larger object to see what TypeScript has inferred about them
+            (see <a data-type="xref" href="#inferred-in-property">Figure 2-4</a>).</p>
+
+          <figure>
+            <div class="figure" id="inferred-in-property">
+              <img alt="efts 0203" src="assets/efts_0203.png" />
+              <h6><span class="label">Figure 2-…/code> <code class="nx">shouldUpdate</code><code class="p">(</code>
+                  <code class="nx">oldProps</code>: <code class="nx">ScatterProps</code><code class="p">,</code>
+                  <code class="nx">newProps</code>: <code class="nx">ScatterProps</code>
+                  <code class="p">)</code> <code class="p">{</code>
+                  <code class="kd">let</code> <code class="nx">k</code>: <code class="nx">keyof</code> <code
+                    class="nx">ScatterProps</code><code class="p">;</code>
+                  <code class="k">for</code> <code class="p">(</code><code class="nx">k</code> <code class="k">in</code>
+                  <code class="nx">oldProps</code><code class="p">)</code> <code class="p">{</code>
+                  <code class="k">if</code> <code class="p">(</code><code class="nx">oldProps</code><code
+                    class="p">[</code><code class="nx">k</code><code class="p">]</code> <code class="o">!==</code> <code
+                    class="nx">newProps</code><code class="p">[</code><code class="nx">k</code><code class="p">]</code>
+                  <code class="o">&amp;&amp;</code> <code class="nx">REQUIRES_UPDATE</code><code class="p">[</code><code
+                    class="nx">k</code><code class="p">])</code> <code class="p">{</code>
+                  <code class="k">return</code> <code class="kc">true</code><code class="p">;</code>
+                  <code class="p">}</code>
+                  <code class="p">}</code>
+                  <code class="k">return</code> <code class="kc">false</code><code class="p">;</code>
+                  <code class="p">}</code></pre>
+
+                  <p>The <code>[k in keyof ScatterProps]</code> tells the type checker that
+                    <code>REQUIRES_UPDATES</code> should have all the same properties as <code>ScatterProps</code>. If
+                    future you adds a new property to <code>ScatterProps</code>:</p>
+
+                  <pre data-code-language="ts" data-type="programlisting"><code class="kr">interface</code> <code class="nx">ScatterProps</code> <code class="p">{</code>
+    <code class="c1">// ...</code>
+    <code class="nx">onDoubleClick</code><code class="o">:</code> <code class="p">()</code> <code class="o">=&gt;</code> <code class="k">void</code><code class="p">;</code>
+  <code class="p">}</code></pre>
+
+                  <p>Then this will produce an error in the definition of <code>REQUIRES_UPDATE</code>:</p>
+
+                  <pre data-code-language="ts" data-type="programlisting" id="missing-props-key"><code class="kr">const</code> <code class="nx">REQUIRES_UPDATE</code><code class="o">:</code> <code class="p">{[</code><code class="nx">k</code> <code class="k">in</code> <code class="nx">keyof</code> <code class="nx">ScatterProps</code><code class="p">]</code><code class="o">:</code> <code class="kr">boolean</code><code class="p">}</code> <code class="o">=</code> <code class="p">{</code>
+    <code class="c1">//  ~~~~~~~~~~~~~~~ Property 'onDoubleClick' is missing in type</code>
+    <code class="c1">// ...</code>
+  <code class="p">};</code></pre>
+
+                  <p>This will certainly force the issue! Deleting or renaming a property will cause a similar error.
+                  </p>
+
+                  <p>It’s important that we used an object with boolean values here. Had we used an array:</p>
+
+                  <pre data-code-language="ts" data-type="programlisting"><code class="kr">const</code> <code class="nx">PROPS_REQUIRING_UPDATE</code><code class="o">:</code> <code class="p">(</code><code class="nx">keyof</code> <code class="nx">ScatterProps</code><code class="p">)[]</code> <code class="o">=</code> <code class="p">[</code>
+    <code class="s1">'xs'</code><code class="p">,</code>
+    <code class="s1">'ys'</code><code class="p">,</code>
+    <code class="c1">// ...</code>
+  <code class="p">];</code></pre>
+
+                  <p>then we would have been forced into the same fail open/fail closed choice.</p>
+
+                  <p>Mapped types are ideal if you want one object to have exactly the same properties as another. As in
+                    this example, you can use this to make TypeScript enforce constraints on your code.</p>
+                  <section class="notoc" data-pdf-bookmark="Things to Remember" data-type="sect2">
+                    <div class="sect2" id="idm45331667251560">
+                      <h2>Things to Remember</h2>
+
+                      <ul>
+                        <li>
+                          <p>Use mapped types to keep related values and types synchronized.</p>
+                        </li>
+                        <li>
+                          <p>Consider using mapped types to force choices when adding new properties to an interface.<a
+                              data-primary="" data-startref="Vsyne02" data-type="indexterm" id="idm45331667248472" /><a
+                              data-primary="" data-startref="maptype02" data-type="indexterm"
+                              id="idm45331667247496" /><a data-primary="" data-startref="TSmap02" data-type="indexterm"
+                              id="idm45331667246552" /><a data-primary="" data-startref="ICmap02" data-type="indexterm"
+                              id="idm45331667245608" /></p>
+                        </li>
+                      </ul>
+                    </div>
+                  </section>
+            </div>
+      </section>
+      <div data-type="footnotes">
+        <p data-type="footnote" id="idm45331668614424"><sup><a href="ch02.html#idm45331668614424-marker">1</a></sup> In
+          practice you might just write <code>lines.join('\n').split(/\n\n+/)</code>, but bear with me.</p>
+        <p data-type="footnote" id="idm45331667743432"><sup><a href="ch02.html#idm45331667743432-marker">2</a></sup>
+          React’s <code>useCallback</code> hook is another technique to avoid creating new functions on every render.
+        </p>
+      </div>
+    </div>
+  </section>
+</body>
+
+</html>

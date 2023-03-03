@@ -1,24 +1,108 @@
 import * as dotenv from 'dotenv'
-import { ChatGPTAPI } from 'chatgpt'
+import EPub from 'epub'
+import * as fs from 'fs/promises'
+import { existsSync } from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import extractZip from 'extract-zip'
+import * as cheerio from 'cheerio';
+
+import generateId from './generate-id'
+import Translator from './translator'
 
 dotenv.config()
 
-const prompt = `
-将下面的HTML文档中的英文翻译为中文并保留HTML标签
-<p><span class="audio" id="c001s0001">Call me Ishmael.</span> <span class="audio" id="c001s0002">Some years ago—never mind how long precisely—having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little and see the watery part of the world.</span> <span class="audio" id="c001s0003">It is a way I have of driving off the spleen and regulating the circulation.</span> <span class="audio" id="c001s0004">Whenever I find myself growing grim about the mouth; whenever it is a damp, drizzly November in my soul; whenever I find myself involuntarily pausing before coffin warehouses, and bringing up the rear of every funeral I meet; and especially whenever my hypos get such an upper hand of me, that it requires a strong moral principle to prevent me from deliberately stepping into the street, and methodically knocking people’s hats off—then, I account it high time to get to sea as soon as I can.</span> <span class="audio" id="c001s0005">This is my substitute for pistol and ball.</span> <span class="audio" id="c001s0006">With a philosophical flourish Cato throws himself upon his sword; I quietly take to the ship.</span> <span class="audio" id="c001s0007">There is nothing surprising in this.</span> <span class="audio" id="c001s0008">If they but knew it, almost all men in their degree, some time or other, cherish very nearly the same feelings towards the ocean with me.</span></p>
-`
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const translator = new Translator();
+
 async function main() {
-  const api = new ChatGPTAPI({
-    apiKey: process.env.OPENAI_API_KEY,
-    debug: false
+  const book = 'EffectiveTypeScript';
+  const bookPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'EffectiveTypeScript.epub');
+
+  const unzipEnPath = path.join(__dirname, '..', book, 'en');
+  const unzipCnPath = path.join(__dirname, '..', book, 'cn');
+
+  if (!existsSync(path.join(unzipEnPath, 'META-INF'))) {
+    await fs.mkdir(unzipEnPath, { recursive: true });
+    await fs.mkdir(unzipCnPath, { recursive: true });
+    await extractZip(bookPath, { dir: unzipEnPath });
+    await extractZip(bookPath, { dir: unzipCnPath });
+    console.log('Extraction complete');
+  }
+
+  const epub = new EPub(bookPath);
+  await new Promise((resolve, reject) => {
+    epub.on('end', resolve);
+    epub.on('error', reject);
+    epub.parse();
   })
-  console.log(prompt)
-  let res = await api.sendMessage(prompt, {
-    onProgress: (partialResponse) => {
-      console.log(partialResponse.text)
+  console.log(`解析完成，书名：${epub.metadata?.title}`);
+
+  for (let index = 0; index < epub.flow.length; index++) {
+    const href: string = epub.flow[index]['href'];
+    const mediaType: string = epub.flow[index]['media-type'];
+    if (!mediaType.includes('tml')) {
+      continue;
     }
-  })
-  console.log(res.text)
+    const stateInfoPath = path.join(unzipEnPath, 'state_info.txt');
+    if (!existsSync(stateInfoPath)) {
+      await fs.writeFile(stateInfoPath, '')
+    }
+    const stateInfoFs = await fs.readFile(stateInfoPath);
+    const stateInfo = stateInfoFs.toString();
+    // console.log('历史状态信息：', stateInfo);
+    if (stateInfo.includes(href)) {
+      continue;
+    }
+    console.log('翻译：', href);
+    const htmlPath = path.join(unzipCnPath, ...href.split(/\\\//));
+    const html = await fs.readFile(htmlPath, { flag: 'r' });
+    const $ = cheerio.load(html);
+    const pEls = $('p').toArray();
+
+    let shouldWriteId = false;
+    for (let index = 0; index < pEls.length; index++) {
+      const $el = $(pEls[index]);
+      if (!$el.attr('k-id')) {
+        $el.attr('k-id', generateId());
+        shouldWriteId = true
+      }
+    }
+    if (shouldWriteId) {
+      console.log('对文档的段落进行标记')
+      await fs.writeFile(htmlPath, $.html())
+    }
+
+    for (let index = 0; index < pEls.length; index++) {
+      const $el = $(pEls[index]);
+      const id = $el.attr('k-id');
+      const state: string = $el.attr('k-state');
+      if (state === 'success') {
+        continue;
+      }
+      const tryTimes = isNaN(parseInt(state)) ? 1 : parseInt(state) + 1;
+      $el.attr('k-state', String(tryTimes));
+      const msg = $el.html();
+      if (tryTimes > 2) {
+        console.log('翻译失败：', tryTimes, msg);
+        continue;
+      }
+      const res: any = await translator.translator(id, msg);
+      if (typeof res === 'function') {
+        res().then((v: string) => {
+          $el.attr('k-state', 'success');
+          $el.html(v);
+        })
+      } else {
+        $el.attr('k-state', 'success');
+        $el.html(res);
+      }
+    }
+
+    await fs.writeFile(htmlPath, $.html(), { flag: 'w' })
+
+    // await fs.appendFile(stateInfoPath, '\r\n' + href);
+  }
 }
 
 main()

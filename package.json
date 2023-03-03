@@ -5,7 +5,12 @@
   },
   "dependencies": {
     "chatgpt": "^4.8.3",
-    "dotenv": "^16.0.3"
+    "cheerio": "^1.0.0-rc.12",
+    "dotenv": "^16.0.3",
+    "epub": "^1.2.1",
+    "extract-zip": "^2.0.1",
+    "single-line-log": "^1.1.2",
+    "zip-a-folder": "^1.1.5"
   },
   "devDependencies": {
     "@types/node": "^18.14.2",
