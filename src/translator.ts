@@ -1,16 +1,21 @@
-import { EventEmitter } from 'events'
-import { ChatGPTAPI } from 'chatgpt'
+import { ChatGPTAPI } from 'chatgpt';
 import * as cheerio from 'cheerio';
+import nodeFetch from 'node-fetch';
+import ProxyAgent from 'simple-proxy-agent';
+import { stdout as log } from 'single-line-log';
 
-export default class GptTranslator extends EventEmitter {
-  private isWait = false;
+export default class GptTranslator {
   private api: ChatGPTAPI;
   private batchPrompt: { id: string, prompt: string, result?: string, resolve?: (v: string) => void }[] = [];
+
   constructor () {
-    super();
     this.api = new ChatGPTAPI({
       apiKey: process.env.OPENAI_API_KEY,
-      debug: false
+      fetch: (input: any, init?: any): any => {
+        return nodeFetch(input, Object.assign({
+          agent: process.env.PROXY ? ProxyAgent(process.env.PROXY) : undefined, 
+        }, init))
+      }
     });
   }
 
@@ -31,12 +36,17 @@ export default class GptTranslator extends EventEmitter {
     }
   }
 
+  getResVal(res: any, cb: (v: any) => void) {
+    if (typeof res === 'function') {
+      res().then(cb)
+    } else {
+      cb(res)
+    }
+  }
+
   async hand() {
     const prompt = this.batchPrompt.map(v => `<p gpt-id="${v.id}">${v.prompt}</p>`).join('');
-    if (this.isWait) {
-      return true;
-    }
-    if (prompt.length < 100) {
+    if (prompt.length < 300) {
       return true;
     }
     const msg = `将下面的HTML文档中的英文翻译为中文并保留HTML标签\r\n${prompt}`;
@@ -51,31 +61,19 @@ export default class GptTranslator extends EventEmitter {
         p.result = el.html();
       }
     } catch (error) {
-      this.emit('error', error);
+      console.error(error)
     }
     this.batchPrompt.forEach(v => v.resolve(v.result));
     this.batchPrompt = [];
   }
 
   private async sendGptMessage(prompt: string) {
-    // return new Promise<{ text: string }>((resolve) => {
-    //   setTimeout(() => {
-    //     resolve({ text: prompt });
-    //   }, 3000);
-    // })
-    try {
-      this.isWait = true;
-      console.log(prompt);
-      const res = await this.api.sendMessage(prompt, {
-        onProgress: (partialResponse) => {
-          console.log(partialResponse.text)
-        }
-      })
-      return res
-    } catch (error) {
-      throw error
-    } finally {
-      this.isWait = false;
-    }
+    console.log(prompt);
+    const res = await this.api.sendMessage(prompt, {
+      onProgress: (partialResponse) => {
+        log(partialResponse.text)
+      }
+    });
+    return res
   }
 }

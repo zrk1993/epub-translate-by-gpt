@@ -6,9 +6,11 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import extractZip from 'extract-zip'
 import * as cheerio from 'cheerio';
+import { zip as zipFolder } from 'zip-a-folder';
 
 import generateId from './generate-id'
 import Translator from './translator'
+import { debounce, delay } from './utils'
 
 dotenv.config()
 
@@ -19,14 +21,11 @@ async function main() {
   const book = 'EffectiveTypeScript';
   const bookPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'EffectiveTypeScript.epub');
 
-  const unzipEnPath = path.join(__dirname, '..', book, 'en');
-  const unzipCnPath = path.join(__dirname, '..', book, 'cn');
+  const unzipPath = path.join(__dirname, '..', book);
 
-  if (!existsSync(path.join(unzipEnPath, 'META-INF'))) {
-    await fs.mkdir(unzipEnPath, { recursive: true });
-    await fs.mkdir(unzipCnPath, { recursive: true });
-    await extractZip(bookPath, { dir: unzipEnPath });
-    await extractZip(bookPath, { dir: unzipCnPath });
+  if (!existsSync(path.join(unzipPath, 'META-INF'))) {
+    await fs.mkdir(unzipPath, { recursive: true });
+    await extractZip(bookPath, { dir: unzipPath });
     console.log('Extraction complete');
   }
 
@@ -44,18 +43,9 @@ async function main() {
     if (!mediaType.includes('tml')) {
       continue;
     }
-    const stateInfoPath = path.join(unzipEnPath, 'state_info.txt');
-    if (!existsSync(stateInfoPath)) {
-      await fs.writeFile(stateInfoPath, '')
-    }
-    const stateInfoFs = await fs.readFile(stateInfoPath);
-    const stateInfo = stateInfoFs.toString();
-    // console.log('历史状态信息：', stateInfo);
-    if (stateInfo.includes(href)) {
-      continue;
-    }
-    console.log('翻译：', href);
-    const htmlPath = path.join(unzipCnPath, ...href.split(/\\\//));
+
+    console.log('开始翻译HTML：', href);
+    const htmlPath = path.join(unzipPath, ...href.split(/\\\//));
     const html = await fs.readFile(htmlPath, { flag: 'r' });
     const $ = cheerio.load(html);
     const pEls = $('p').toArray();
@@ -69,10 +59,10 @@ async function main() {
       }
     }
     if (shouldWriteId) {
-      console.log('对文档的段落进行标记')
       await fs.writeFile(htmlPath, $.html())
     }
 
+    console.log(`文档总段落数：${pEls.length}`);
     for (let index = 0; index < pEls.length; index++) {
       const $el = $(pEls[index]);
       const id = $el.attr('k-id');
@@ -84,25 +74,25 @@ async function main() {
       $el.attr('k-state', String(tryTimes));
       const msg = $el.html();
       if (tryTimes > 2) {
-        console.log('翻译失败：', tryTimes, msg);
+        console.log(`段落${id}翻译失败：`, tryTimes, msg);
         continue;
       }
       const res: any = await translator.translator(id, msg);
-      if (typeof res === 'function') {
-        res().then((v: string) => {
+      translator.getResVal(res, (v) => {
+        if (v) {
           $el.attr('k-state', 'success');
           $el.html(v);
-        })
-      } else {
-        $el.attr('k-state', 'success');
-        $el.html(res);
-      }
+        } else {
+          console.log(`段落${id}翻译失败`, id, msg);
+        }
+      });
+      await fs.writeFile(htmlPath, $.html(), { flag: 'w' });
     }
-
-    await fs.writeFile(htmlPath, $.html(), { flag: 'w' })
-
-    // await fs.appendFile(stateInfoPath, '\r\n' + href);
+    await delay(300);
+    console.log('结束翻译HTML：', href);
   }
+  await zipFolder(unzipPath, path.join(path.dirname(bookPath), `${book}_cn.epub`));
+  console.log('Translator complete');
 }
 
 main()

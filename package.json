@@ -1,7 +1,8 @@
 {
   "type": "module",
   "scripts": {
-    "serve": "tsx src/main.ts"
+    "serve": "tsx src/main.ts",
+    "test": "tsx src/test.ts"
   },
   "dependencies": {
     "chatgpt": "^4.8.3",
@@ -9,7 +10,11 @@
     "dotenv": "^16.0.3",
     "epub": "^1.2.1",
     "extract-zip": "^2.0.1",
+    "node-fetch": "^3.3.0",
+    "openai": "^3.2.1",
+    "simple-proxy-agent": "^1.1.0",
     "single-line-log": "^1.1.2",
+    "tunnel": "^0.0.6",
     "zip-a-folder": "^1.1.5"
   },
   "devDependencies": {
