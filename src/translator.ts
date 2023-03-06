@@ -3,12 +3,12 @@ import nodeFetch from 'node-fetch';
 import ProxyAgent from 'simple-proxy-agent';
 import { RateLimiter } from "limiter";
 
-const limiter = new RateLimiter({ tokensPerInterval: parseInt(process.env.API_LIMITER), interval: "minute" });
-
 export default class GptTranslator {
   private api: ChatGPTAPI;
+  private limiter: RateLimiter;
 
   constructor () {
+    this.limiter = new RateLimiter({ tokensPerInterval: parseInt(process.env.API_LIMITER), interval: "minute" });
     this.api = new ChatGPTAPI({
       apiKey: process.env.OPENAI_API_KEY,
       fetch: (input: any, init?: any): any => {
@@ -20,7 +20,7 @@ export default class GptTranslator {
   }
 
   async sendGptMessage(prompt: string, onProgress: (partialResponse: ChatMessage) => void): Promise<ChatMessage> {
-    const remainingRequests = await limiter.removeTokens(1);
+    const remainingRequests = await this.limiter.removeTokens(1);
     console.log(remainingRequests)
     const res = await this.api.sendMessage(prompt, {
       onProgress
