@@ -84,12 +84,11 @@ async function main() {
         continue;
       }
       let i = 0;
-      log(`翻译中：${((flowIndex + index / pEls.length) * step * 100).toFixed(2)}%${[".", "..", "..."][i++ % 3]}`);
+      const onProgress = () => log(`翻译中：${((flowIndex + index / pEls.length) * step * 100).toFixed(2)}%${[".", "..", "..."][i++ % 3]}`);
+      onProgress()
       const res = await translator.sendGptMessage(
         `翻译\r\n${msg}`,
-        (partialResponse) => {
-          log(`翻译中：${((flowIndex + index / pEls.length) * step * 100).toFixed(2)}%${[".", "..", "..."][i++ % 3]}`);
-        }
+        (partialResponse) => onProgress
       );
       if (res?.text) {
         $el.attr("k-state", "success");
