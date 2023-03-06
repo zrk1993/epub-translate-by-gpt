@@ -1,11 +1,12 @@
 {
   "type": "module",
+  "author": "kun",
   "scripts": {
-    "serve": "tsx src/main.ts",
+    "dev": "tsx src/main.ts",
     "zip": "tsx src/main.ts -z"
   },
   "dependencies": {
-    "chatgpt": "^4.8.3",
+    "chatgpt": "^5.0.0",
     "cheerio": "^1.0.0-rc.12",
     "dotenv": "^16.0.3",
     "epub": "^1.2.1",

@@ -16,7 +16,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const translator = new Translator();
 
 async function main() {
-  const book = path.basename(process.env.BOOK_PATH).replace(".epub", "");
+  const book = path.basename(process.env.BOOK_PATH, '.epub');
   const bookPath = path.resolve(process.env.BOOK_PATH);
   const unzipPath = path.join(__dirname, "../build", book);
 
@@ -84,6 +84,7 @@ async function main() {
         continue;
       }
       let i = 0;
+      log(`翻译中：${((flowIndex + index / pEls.length) * step * 100).toFixed(2)}%${[".", "..", "..."][i++ % 3]}`);
       const res = await translator.sendGptMessage(
         `翻译\r\n${msg}`,
         (partialResponse) => {
