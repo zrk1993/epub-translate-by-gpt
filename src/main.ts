@@ -9,6 +9,7 @@ import * as cheerio from "cheerio";
 import { zip as zipFolder } from "zip-a-folder";
 import { stdout as log } from "single-line-log";
 import Translator from "./translator";
+import { debounce, delay } from "./utils";
 
 dotenv.config();
 
@@ -65,8 +66,13 @@ async function main() {
     });
     const pEls = $("p").toArray();
 
+    const updateHtmlFile = debounce(() => {
+      fs.writeFile(htmlPath, $.html(), { flag: "w" });
+    }, 1000);
+
     console.log(`文档总段落数：${pEls.length}`);
-    for (let index = 0; index < pEls.length; index++) {
+    let index = 0;
+    for (index = 0; index < pEls.length; index++) {
       const $el = $(pEls[index]);
       const state: string = $el.attr("k-state");
       if (state === "success" || state === "never") {
@@ -85,19 +91,18 @@ async function main() {
       }
       let i = 0;
       const onProgress = () => log(`翻译中：${((flowIndex + index / pEls.length) * step * 100).toFixed(2)}%${[".", "..", "..."][i++ % 3]}`);
-      onProgress()
-      const res = await translator.sendGptMessage(
-        `翻译\r\n${msg}`,
-        (partialResponse) => onProgress
-      );
-      if (res?.text) {
-        $el.attr("k-state", "success");
-        $el.html(res.text);
-      } else {
-        console.log(`段落翻译失败`, msg);
-      }
-      await fs.writeFile(htmlPath, $.html(), { flag: "w" });
+      const resWrap = await translator.sendGptMessage(`翻译\r\n${msg}`, onProgress);
+      resWrap().then(async (res) => {
+        if (res?.text) {
+          $el.attr("k-state", "success");
+          $el.html(res.text);
+          updateHtmlFile();
+        } else {
+          console.log(`段落翻译失败`, msg);
+        }
+      })
     }
+    await delay(1200);
     console.log("结束翻译HTML：", href);
   }
   await zipFolder(

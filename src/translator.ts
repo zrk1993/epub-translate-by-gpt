@@ -1,14 +1,13 @@
 import { ChatGPTAPI, ChatMessage } from 'chatgpt';
 import nodeFetch from 'node-fetch';
 import ProxyAgent from 'simple-proxy-agent';
-import { RateLimiter } from "limiter";
 
 export default class GptTranslator {
   private api: ChatGPTAPI;
-  private limiter: RateLimiter;
+  private limit: number;
 
   constructor () {
-    this.limiter = new RateLimiter({ tokensPerInterval: parseInt(process.env.API_LIMITER), interval: "minute" });
+    this.limit = parseInt(process.env.API_LIMITER);
     this.api = new ChatGPTAPI({
       apiKey: process.env.OPENAI_API_KEY,
       fetch: (input: any, init?: any): any => {
@@ -19,13 +18,32 @@ export default class GptTranslator {
     });
   }
 
-  async sendGptMessage(prompt: string, onProgress: (partialResponse: ChatMessage) => void): Promise<ChatMessage> {
-    const remainingRequests = await this.limiter.removeTokens(1);
-    console.log(remainingRequests)
-    const res = await this.api.sendMessage(prompt, {
+  async frequencyCtr() {
+    if (this.limit > 0) {
+      return this.limit--
+    } else {
+      return new Promise(r => {
+        const timer = setInterval(() => {
+          if (this.limit > 0) {
+            clearInterval(timer);
+            r(this.limit--);
+          }
+        }, 500);
+      })
+    }
+  }
+
+  async sendGptMessage(prompt: string, onProgress: (partialResponse: ChatMessage) => void): Promise<() => Promise<ChatMessage>> {
+    await this.frequencyCtr()
+    const res = this.api.sendMessage(prompt, {
       onProgress
     });
-    return res
+    return () => new Promise(r => {
+      res.then(v => {
+        this.limit++;
+        r(v);
+      })
+    })
     // return this.sendMessageApi(prompt)
   }
 
